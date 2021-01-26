@@ -1,0 +1,4 @@
+# Authorizations notecard. Each line is an allowed entry
+# @ means avatars currently having the same group than this obect
+# an UUID is checked directly
+# any name in the form FirstName LastName (grid optional)
