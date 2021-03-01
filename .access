@@ -1,0 +1,20 @@
+# Authorization notecard. Empty lines or lines starting with # are ignored
+# Without configuration, only the owner is allowed to use
+# mode = group to enable everyone wearing the same group tag than the object
+# mode = all to enable everyone
+#mode = group
+#mode = all
+
+# Each line starts with allow or deny, the value determine who is concerned,
+# with one of the following formats:
+# @grid-name
+#       Everyone in that grid
+# Firstname Lastname
+#       This avatar matching Firstname Lastname (any grid)
+# 7a60dc25-0884-4474-9b0f-bf5844d34d80
+#       The avatar with this UUID
+
+#deny = @lfgrid.com:8002
+#deny = 7a60dc25-0884-4474-9b0f-bf5844d34d80
+#deny = Gerard Linden
+#allow = Typhaine Artez

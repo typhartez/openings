@@ -16,8 +16,6 @@
 // ****************************************************************
 // ****************************************************************
 
-#define DBG(_msg)   llOwnerSay(_msg)
-
 key OWNER;
 
 integer menu_chan;  // dialog listener
@@ -237,8 +235,9 @@ menu() {
 }
 
 handle_touch(integer link, key id) {
+    integer myLink = llGetLinkNumber();
     if (id != OWNER) return;
-    if (1 < link && "SELECT" != menu_step && "COPY" != menu_step) return;
+    if (myLink != link && !("SELECT" == menu_step || "COPY" == menu_step)) return;
     if ("SELECT" == menu_step) {
         send(1, "unlock", "");
         cur_link = link;
@@ -249,10 +248,8 @@ handle_touch(integer link, key id) {
         send(1, "unlock", "");
         // load config to copy and save it in new link
         integer saved = cur_link;
-        DBG("copying for "+(string)saved);
         cur_link = link;
         if (getConfig()) {
-            DBG("got config from "+(string)cur_link);
             cur_link = saved;
             setConfig();
         }

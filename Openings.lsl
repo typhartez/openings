@@ -31,7 +31,6 @@ integer all_locked;         // touch/collide have no effect if TRUE
 list still_opened;          // list of opened items that will be auto closed: [link, type, unixtime]
 integer altered_opened;     // list has been altered by a manual closing
 integer use_acls;           // TRUE=without config owner only, FALSE=everyone
-list acls;                  // list of authorized users/groups
 
 // settings of currently processed opening
 key cur_user;           // who touched/collided
@@ -51,44 +50,77 @@ vector cur_cpos;        // closed local position
 rotation cur_crot;      // closed local rotation
 integer cur_cshape;     // closed prim shape type
 
-// ACLs notecard
-key nckey = NULL_KEY;
-integer ncline;
+// ACLs
+list acls;      // authorization list (first item is mode ("O"=owner, "G"=group, "A"=all)
+                // followed by pairs of items: "A" for allow, "D" for deny, then the access definition
+key nckey;      // .access notecard (for automatic reload on notecard change)
+integer ncline; // parse notecard
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Load Access Control List from notecard
-reloadACL() {
-    nckey = llGetInventoryKey(".acls");
-    use_acls = (NULL_KEY != nckey);
-    if (use_acls) {
-        ncline = 0;
-        llGetNotecardLine(".acls", ncline);
+// Returns TRUE if some data need to be read
+integer reloadACLs(string data) {
+    if (EOF == data) {
+        llOwnerSay("Authorizations loaded.");
+        return FALSE;
     }
+    if ("--START--" == data) {
+        nckey = llGetInventoryKey(".access");
+        if (NULL_KEY != nckey) {
+            acls = ["O"]; // by default, owner only
+            ncline = 0;
+            llGetNotecardLine(".access", ncline);
+            return TRUE;
+        }
+        // no ACLs used
+        acls = ["A"];   // by default, everyone
+        return FALSE;
+    }
+    if ("" != data && 0 != llSubStringIndex(data, "#")) {
+        // read data
+        integer sep = llSubStringIndex(data, "=");
+        if (~sep) {
+            string kw = llToLower(llStringTrim(llGetSubString(data, 0, sep-1), STRING_TRIM));
+            string val = llToLower(llStringTrim(llGetSubString(data, sep+1, -1), STRING_TRIM));
+            if ("mode" == kw) {
+                if ("all" == val) val = "A";
+                else if ("group" == val) val = "G";
+                else if ("owner" == val) val = "O";
+                else val = "";
+                if ("" != val) acls = llListReplaceList(acls, [val], 0, 0);
+            }
+            else if ("allow" == kw) acls += ["A", val];
+            else if ("deny" == kw) acls += ["D", val];
+            else llOwnerSay("Warning: unrecognized line: " + data);
+        }
+    }
+    // read next line
+    llGetNotecardLine(".access", ++ncline);
+    return TRUE;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Returns TRUE if user key is allowed to operate
 integer isAuthorized(key id) {
-    if (id == llGetOwner() || FALSE == use_acls) return TRUE;
+    if (llGetOwner() == id) return TRUE; // owner always allowed
+    string mode = llList2String(acls, 0);
+    string type;
     string auth;
-    string name;
-    integer n = llGetListLength(acls);
-    while (~(--n)) {
-        auth = llList2String(acls, n);
-        // @ matches building group
-        if ("@" == auth && llSameGroup(id)) return TRUE;
-        // user
-        if (osIsUUID(auth)) {
-            if (auth == (string)id) return TRUE;
-        }
-        else {
-            // normalize name first.last (all lower case, without grid suffix)
-            auth = osReplaceString(osReplaceString(auth, " ?@.*", "", 1, 0), " ", ".", 1, 0);
-            name = osReplaceString(osReplaceString(llKey2Name(id), " ?@.*", "", 1, 0), " ", ".", 1, 0);
-            if (llToLower(auth) == llToLower(name)) return TRUE;
-        }
+    string name = llToLower(osReplaceString(osReplaceString(llKey2Name(id), " ?@.*$", "", 1, 0), "\\.", " ", -1, 0));
+    integer pos;
+    integer n = llGetListLength(acls) - 2;
+    for (; 0 < n; n -= 2) {
+        type = llList2String(acls, n);
+        auth = llList2String(acls, n+1);
+        // check agent key, the faster
+        if (osIsUUID(auth) && id == (key)auth) return ("A" == type);
+        // normalize name first last (all lower case, without grid suffix, no dots)
+        auth = osReplaceString(osReplaceString(auth, " ?@.*$", "", 1, 0), "\\.", " ", -1, 0);
+        if (-1 != ~llSubStringIndex(name, auth)) return ("A" == type);
     }
-    return FALSE;
+    // not matched, check mode
+    if ("A" == mode || ("G" == mode && llSameGroup(id))) return TRUE;
+    return FALSE; // owner only
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -412,11 +444,11 @@ default {
     //----------------------------------------------------------------------------------------------
     changed(integer c) {
         if (CHANGED_OWNER & c) llResetScript();
-        if (CHANGED_INVENTORY & c) reloadACL();
+        if ((CHANGED_INVENTORY & c) && (llGetInventoryKey(".access") != nckey)) reloadACLs("--START--");
     }
     //----------------------------------------------------------------------------------------------
     state_entry() {
-        reloadACL();
+        reloadACLs("--START--");
         resetStoredStates();
     }
     //----------------------------------------------------------------------------------------------
@@ -464,11 +496,6 @@ default {
     }
     //----------------------------------------------------------------------------------------------
     dataserver(key id, string data) {
-        if (EOF == data) {
-            llOwnerSay("Authorizations loaded.");
-            return;
-        }
-        if ("" != data && 0 != llSubStringIndex(data, "#")) acls += llToLower(data);
-        llGetNotecardLine(".acls", ++ncline);
+        reloadACLs(data);
     }
 }
