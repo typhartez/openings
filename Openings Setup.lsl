@@ -78,6 +78,7 @@ integer getConfig() {
         if ("GRP" == prm) cur_group = llList2String(l, ++i);
         else if ("PAIR" == prm) cur_pair = llList2String(l, ++i);
         else if ("X" == prm || "Y" == prm || "Z" == prm) cur_axis = prm;
+        else if ("-X" == prm || "-Y" == prm || "-Z" == prm) cur_axis = prm;
         else if ("CCW" == prm || "LEFT" == prm || "DOWN" == prm) { cur_dirtxt = prm; cur_dir = 1; }
         else if ("CW" == prm || "RIGHT" == prm || "UP" == prm) { cur_dirtxt = prm; cur_dir = -1; }
         else if ("AC" == prm) cur_autoclose = (integer)llList2String(l, ++i);
@@ -200,6 +201,7 @@ menu() {
             + "(axis is relative to prim local orientation)";
         btns = [
             "X", "Y", "Z",
+            "-X", "-Y", "-Z",
             " ", " ", "[Cancel]"
         ];
     }
