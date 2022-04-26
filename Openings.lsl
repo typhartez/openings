@@ -1,5 +1,6 @@
-// Openings - central management of prefabs openings
-// Copyleft 2020-2021 Typhaine Artez
+// Openings 1.1 - central management of prefabs openings
+// Copyleft 2020-2022 Typhaine Artez
+// Changelog at the end
 //
 // Based on:
 // http://wiki.secondlife.com/wiki/One_Script,_many_doors
@@ -156,6 +157,7 @@ integer getConfig(integer link) {
         else if ("GRP" == prm) cur_group = llList2String(l, ++i);
         else if ("PAIR" == prm) cur_pair = llList2String(l, ++i);
         else if ("X" == prm || "Y" == prm || "Z" == prm) cur_axis = prm;
+        else if ("-X" == prm || "-Y" == prm || "-Z" == prm) cur_axis = prm;
         else if ("CCW" == prm || "LEFT" == prm || "DOWN" == prm) cur_dir = 1;
         else if ("CW" == prm || "RIGHT" == prm || "UP" == prm) cur_dir = -1;
         else if ("%" == llGetSubString(prm, -1, -1)) cur_units = (integer)llGetSubString(prm, 0, -2);
@@ -359,20 +361,27 @@ hingeOpening(integer was_opened) {
         vector size = llList2Vector(llGetLinkPrimitiveParams(cur_link, [PRIM_SIZE]), 0);
         vector vrot = ZERO_VECTOR;
         vector axes = ZERO_VECTOR;
-        if ("X" == cur_axis) {
+        float side = 1.0;
+        string axis = cur_axis;
+        if ("-" == llGetSubString(axis, 0, 0)) {
+            side = -1.0;
+            axis = llGetSubString(axis, 1, -1);
+        }
+        if ("X" == axis) {
             axes.x = 1.0;
-            if (size.y > size.z) vrot.y = size.y / 2;
-            else vrot.z = size.z / 2;
+            if (size.y > size.z) vrot.y = side * size.y / 2;
+            else vrot.z = side * size.z / 2;
         }
-        else if ("Y" == cur_axis) {
+        else if ("Y" == axis) {
             axes.y = 1.0;
-            if (size.x > size.z) vrot.x = size.x / 2;
-            else vrot.z = size.z / 2;
+            if (size.x > size.z) vrot.x = side * size.x / 2;
+            else vrot.z = side * size.z / 2;
         }
-        else if ("Z" == cur_axis) {
+        //else if ("Z" == cur_axis) {
+        else if ("Z" == axis) {
             axes.z = 1.0;
-            if (size.x > size.y) vrot.x = size.x / 2;
-            else vrot.y = size.y / 2;
+            if (size.x > size.y) vrot.x = side * size.x / 2;
+            else vrot.y = side * size.y / 2;
         }
         vector hinge = cur_cpos - vrot * cur_crot;
         rotation orbit = llEuler2Rot(axes * cur_units * DEG_TO_RAD * cur_dir);
@@ -499,3 +508,7 @@ default {
         reloadACLs(data);
     }
 }
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// Changelog
+// 1.1 - 2022/04/26 - fixed hinge opening direction
